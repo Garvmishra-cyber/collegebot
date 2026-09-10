@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>CollegeBot</title>
+
+    <!-- CollegeBot CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=2000">
+</head>
+
+<body>
+
+    <!-- =====================================================
+         MAIN APP
+    ====================================================== -->
+
+    <div class="app">
+
+        <!-- =================================================
+             SIDEBAR
+        ================================================== -->
+
+        <aside class="sidebar">
+
+            <!-- Brand -->
+            <div class="brand">
+
+                <div class="brand-icon">
+                    🎓
+                </div>
+
+                <span>
+                    CollegeBot
+                </span>
+
+            </div>
+
+
+            <!-- New Chat -->
+            <button
+                id="newChatBtn"
+                class="new-chat"
+                type="button">
+
+                ＋ New Chat
+
+            </button>
+
+
+            <!-- Chat History -->
+            <button
+                id="historyBtn"
+                class="side-btn"
+                type="button">
+
+                🕘 Chat History
+
+            </button>
+
+
+            <!-- Settings -->
+            <button
+                id="settingsBtn"
+                class="side-btn"
+                type="button">
+
+                ⚙️ Settings
+
+            </button>
+
+
+            <!-- =================================================
+                 RECENT CHATS
+            ================================================== -->
+
+            <div class="recent-section">
+
+                <h3>
+                    Recent Chats
+                </h3>
+
+                <div id="recentQuestions">
+
+                    <p class="empty-history">
+                        No chats yet
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <!-- Logout -->
+            <button
+                id="logoutBtn"
+                class="side-btn logout-btn"
+                type="button">
+
+                🚪 Logout
+
+            </button>
+
+        </aside>
+
+
+        <!-- =================================================
+             MAIN AREA
+        ================================================== -->
+
+        <main class="main">
+
+
+            <!-- =================================================
+                 HEADER
+            ================================================== -->
+
+            <header class="header">
+
+                <div class="header-left">
+
+                    <div class="bot-logo">
+                        🎓
+                    </div>
+
+                    <div>
+
+                        <h1>
+                            CollegeBot
+                        </h1>
+
+                        <p>
+                            Your smart college assistant
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <!-- Gemini Status -->
+                <div
+                    id="status"
+                    class="status">
+
+                    ● Checking...
+
+                </div>
+
+            </header>
+
+
+            <!-- =================================================
+                 CHAT AREA
+            ================================================== -->
+
+            <section
+                id="chatArea"
+                class="chat-area">
+
+                <!-- Welcome Card -->
+
+                <div
+                    class="welcome-card"
+                    id="welcomeCard">
+
+                    <div class="welcome-icon">
+                        👋
+                    </div>
+
+                    <h2>
+                        Welcome to CollegeBot
+                    </h2>
+
+                    <p>
+                        Your AI-powered college assistant.
+                    </p>
+
+                    <p>
+                        Ask me anything about your college,
+                        courses, attendance, exams and more.
+                    </p>
+
+                    <div class="voice-info">
+
+                        🎤
+                        <b>Voice Assistant:</b>
+
+                        Click the microphone button below
+                        to ask your question using your voice.
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- =================================================
+                 QUICK QUESTIONS
+            ================================================== -->
+
+            <div class="quick-questions">
+
+                <button
+                    type="button"
+                    data-question="What is the attendance requirement?">
+
+                    📊 Attendance requirement
+
+                </button>
+
+
+                <button
+                    type="button"
+                    data-question="Tell me about examinations">
+
+                    📝 Examinations
+
+                </button>
+
+
+                <button
+                    type="button"
+                    data-question="Tell me about CSE courses">
+
+                    💻 CSE courses
+
+                </button>
+
+
+                <button
+                    type="button"
+                    data-question="How can I contact college administration?">
+
+                    🏫 Contact administration
+
+                </button>
+
+            </div>
+
+
+            <!-- =================================================
+                 INPUT AREA
+            ================================================== -->
+
+            <div class="input-area">
+
+
+                <div class="input-box">
+
+
+                    <!-- Microphone -->
+
+                    <button
+                        id="micBtn"
+                        class="icon-btn"
+                        type="button"
+                        title="Voice input">
+
+                        🎤
+
+                    </button>
+
+
+                    <!-- Text Input -->
+
+                    <textarea
+                        id="messageInput"
+                        placeholder="Ask CollegeBot..."
+                        rows="1"
+                        autocomplete="off"></textarea>
+
+
+                    <!-- Speak -->
+
+                    <button
+                        id="speakBtn"
+                        class="icon-btn"
+                        type="button"
+                        title="Speak last answer">
+
+                        🔊
+
+                    </button>
+
+                </div>
+
+
+                <!-- Send -->
+
+                <button
+                    id="sendBtn"
+                    class="send-btn"
+                    type="button"
+                    title="Send">
+
+                    ➤
+
+                </button>
+
+            </div>
+
+        </main>
+
+    </div>
+
+
+    <!-- =====================================================
+         SETTINGS MODAL
+    ====================================================== -->
+
+    <div
+        id="settingsModal"
+        class="modal hidden">
+
+        <div class="modal-box">
+
+            <div class="modal-header">
+
+                <div>
+
+                    <h2>
+                        ⚙️ Settings
+                    </h2>
+
+                </div>
+
+                <button
+                    id="closeSettings"
+                    type="button">
+
+                    ×
+
+                </button>
+
+            </div>
+
+
+            <!-- Theme -->
+
+            <div class="setting-row">
+
+                <div>
+
+                    <strong>
+                        🎨 Theme
+                    </strong>
+
+                    <p>
+                        Choose your preferred theme
+                    </p>
+
+                </div>
+
+                <select id="themeSelect">
+
+                    <option value="light">
+                        ☀️ Light
+                    </option>
+
+                    <option value="dark">
+                        🌙 Dark
+                    </option>
+
+                    <option value="pink">
+                        🌸 Pink
+                    </option>
+
+                    <option value="blue">
+                        💙 Blue
+                    </option>
+
+                    <option value="purple">
+                        💜 Purple
+                    </option>
+
+                </select>
+
+            </div>
+
+
+            <!-- Language -->
+
+            <div class="setting-row">
+
+                <div>
+
+                    <strong>
+                        🌐 Language
+                    </strong>
+
+                    <p>
+                        Choose response language
+                    </p>
+
+                </div>
+
+                <select id="languageSelect">
+
+                    <option value="auto">
+                        Automatic
+                    </option>
+
+                    <option value="english">
+                        English
+                    </option>
+
+                    <option value="hindi">
+                        Hindi / Hinglish
+                    </option>
+
+                </select>
+
+            </div>
+
+
+            <!-- Voice -->
+
+            <div class="setting-row">
+
+                <div>
+
+                    <strong>
+                        🔊 Voice
+                    </strong>
+
+                    <p>
+                        Enable voice responses
+                    </p>
+
+                </div>
+
+                <label class="switch">
+
+                    <input
+                        type="checkbox"
+                        id="voiceToggle"
+                        checked>
+
+                    <span class="slider"></span>
+
+                </label>
+
+            </div>
+
+
+            <!-- Save -->
+
+            <button
+                id="saveSettingsBtn"
+                class="new-chat"
+                type="button">
+
+                💾 Save Settings
+
+            </button>
+
+
+            <!-- Clear History -->
+
+            <button
+                id="clearHistoryBtn"
+                class="clear-btn"
+                type="button">
+
+                🗑️ Clear Chat History
+
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <!-- =====================================================
+         HISTORY MODAL
+    ====================================================== -->
+
+    <div
+        id="historyModal"
+        class="modal hidden">
+
+        <div class="modal-box history-box">
+
+            <div class="modal-header">
+
+                <div>
+
+                    <h2>
+                        🕘 Chat History
+                    </h2>
+
+                </div>
+
+                <button
+                    id="closeHistory"
+                    type="button">
+
+                    ×
+
+                </button>
+
+            </div>
+
+
+            <div id="historyList">
+
+                <p class="empty-history">
+                    No chats yet
+                </p>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- =====================================================
+         JAVASCRIPT
+    ====================================================== -->
+
+    <script src="{{ url_for('static', filename='bot.js') }}?v=2000"></script>
+
+</body>
+
+</html>

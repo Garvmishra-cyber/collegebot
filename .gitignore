@@ -1,0 +1,7 @@
+.env
+collegebot.db
+__pycache__/
+*.pyc
+.venv/
+venv/
+.vscode/
