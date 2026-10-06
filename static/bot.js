@@ -1,9 +1,9 @@
 document.addEventListener("DOMContentLoaded", () => {
 
-    console.log("CollegeBot JS starting...");
+    console.log("CollegeBot starting...");
 
     // =========================================================
-    // ELEMENT FINDER
+    // ELEMENTS
     // =========================================================
 
     const $ = (id) => document.getElementById(id);
@@ -19,41 +19,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     let historyModal = $("historyModal");
     let settingsModal = $("settingsModal");
-
-    let currentChatId = null;
-    let lastBotMessage = "";
-    let isSending = false;
-
-    let recognition = null;
-    let isListening = false;
-
-    let currentUser = null;
-
-    let settings = {
-        language: "auto",
-        theme: "light",
-        voice: true
-    };
-
-
-    // =========================================================
-    // FIND BUTTONS
-    // =========================================================
-
-    function findButton(text) {
-
-        const buttons = Array.from(
-            document.querySelectorAll("button")
-        );
-
-        return buttons.find(btn =>
-            btn.textContent
-                .trim()
-                .toLowerCase()
-                .includes(text.toLowerCase())
-        );
-    }
-
 
     let newChatBtn =
         $("newChatBtn") ||
@@ -73,25 +38,90 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
     // =========================================================
-    // CREATE MISSING CHAT AREA IF REQUIRED
+    // GLOBAL STATE
     // =========================================================
 
-    if (!chatArea) {
+    let currentUser = null;
+    let currentChatId = null;
 
-        console.warn(
-            "chatArea not found. Creating fallback."
+    let isSending = false;
+
+    let lastBotMessage = "";
+
+    let recognition = null;
+    let isListening = false;
+
+    let authMode = "login";
+
+    let settings = {
+        language: "English",
+        theme: "dark",
+        voice: true
+    };
+
+
+    // =========================================================
+    // BUTTON FINDER
+    // =========================================================
+
+    function findButton(text) {
+
+        const buttons =
+            Array.from(
+                document.querySelectorAll("button")
+            );
+
+        return buttons.find(
+            button =>
+                button.textContent
+                    .trim()
+                    .toLowerCase()
+                    .includes(
+                        text.toLowerCase()
+                    )
         );
-
-        chatArea = document.createElement("div");
-
-        chatArea.id = "chatArea";
-
-        document.body.appendChild(chatArea);
     }
 
 
     // =========================================================
-    // UTILITY
+    // API HELPER
+    // =========================================================
+
+    async function api(
+        url,
+        options = {}
+    ) {
+
+        const response =
+            await fetch(
+                url,
+                {
+                    credentials: "same-origin",
+                    ...options
+                }
+            );
+
+        let data = {};
+
+        try {
+
+            data =
+                await response.json();
+
+        } catch (error) {
+
+            data = {};
+        }
+
+        return {
+            response,
+            data
+        };
+    }
+
+
+    // =========================================================
+    // HTML ESCAPE
     // =========================================================
 
     function escapeHTML(text) {
@@ -106,29 +136,40 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
 
+    // =========================================================
+    // MESSAGE FORMAT
+    // =========================================================
+
     function formatMessage(text) {
 
         let safe =
             escapeHTML(text);
 
-        safe = safe.replace(
-            /\*\*(.*?)\*\*/g,
-            "<strong>$1</strong>"
-        );
+        safe =
+            safe.replace(
+                /\*\*(.*?)\*\*/g,
+                "<strong>$1</strong>"
+            );
 
-        safe = safe.replace(
-            /`([^`]+)`/g,
-            "<code>$1</code>"
-        );
+        safe =
+            safe.replace(
+                /`([^`]+)`/g,
+                "<code>$1</code>"
+            );
 
-        safe = safe.replace(
-            /\n/g,
-            "<br>"
-        );
+        safe =
+            safe.replace(
+                /\n/g,
+                "<br>"
+            );
 
         return safe;
     }
 
+
+    // =========================================================
+    // SCROLL
+    // =========================================================
 
     function scrollBottom() {
 
@@ -139,19 +180,29 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
 
+    // =========================================================
+    // CLEAR CHAT
+    // =========================================================
+
     function clearChat() {
 
         if (chatArea) {
+
             chatArea.innerHTML = "";
         }
+
+        lastBotMessage = "";
     }
 
 
     // =========================================================
-    // MESSAGE
+    // ADD MESSAGE
     // =========================================================
 
-    function addMessage(role, text) {
+    function addMessage(
+        role,
+        text
+    ) {
 
         if (!chatArea) return;
 
@@ -181,16 +232,21 @@ document.addEventListener("DOMContentLoaded", () => {
 
         chatArea.appendChild(row);
 
-        scrollBottom();
-
 
         if (role === "assistant") {
 
             lastBotMessage =
-                text;
+                String(text ?? "");
         }
+
+
+        scrollBottom();
     }
 
+
+    // =========================================================
+    // THINKING
+    // =========================================================
 
     function showThinking() {
 
@@ -202,11 +258,13 @@ document.addEventListener("DOMContentLoaded", () => {
         row.className =
             "message-row bot-row";
 
+
         row.innerHTML = `
             <div class="message bot-message thinking">
                 Thinking<span class="dots">...</span>
             </div>
         `;
+
 
         chatArea.appendChild(row);
 
@@ -215,6 +273,10 @@ document.addEventListener("DOMContentLoaded", () => {
         return row;
     }
 
+
+    // =========================================================
+    // WELCOME
+    // =========================================================
 
     function showWelcome() {
 
@@ -236,50 +298,16 @@ Batao, main aapki kya help karun? 😊`
 
 
     // =========================================================
-    // API HELPER
-    // =========================================================
-
-    async function api(url, options = {}) {
-
-        const response =
-            await fetch(
-                url,
-                {
-                    credentials: "same-origin",
-                    ...options
-                }
-            );
-
-
-        let data = {};
-
-        try {
-            data =
-                await response.json();
-        } catch (e) {
-            data = {};
-        }
-
-
-        return {
-            response,
-            data
-        };
-    }
-
-
-    // =========================================================
     // AUTH MODAL
     // =========================================================
 
     function createAuthModal() {
 
         let existing =
-            document.getElementById(
-                "collegebotAuthModal"
-            );
+            $("collegebotAuthModal");
 
         if (existing) {
+
             return existing;
         }
 
@@ -290,7 +318,9 @@ Batao, main aapki kya help karun? 😊`
         modal.id =
             "collegebotAuthModal";
 
+
         modal.innerHTML = `
+
             <div class="cb-auth-box">
 
                 <button
@@ -300,28 +330,51 @@ Batao, main aapki kya help karun? 😊`
                     ×
                 </button>
 
+
                 <div class="cb-auth-icon">
                     🎓
                 </div>
+
 
                 <h2 id="cbAuthTitle">
                     Login to CollegeBot
                 </h2>
 
+
                 <p id="cbAuthSubtitle">
-                    Login to save chats and use all features.
+                    Login karke CollegeBot use karo.
                 </p>
 
 
                 <form id="cbAuthForm">
 
+
                     <input
-                        id="cbUsername"
+                        id="cbName"
                         type="text"
-                        placeholder="Username"
+                        placeholder="Full Name"
+                        autocomplete="name"
+                        style="display:none;"
+                    >
+
+
+                    <input
+                        id="cbIdentifier"
+                        type="text"
+                        placeholder="Email or Username"
                         autocomplete="username"
                         required
                     >
+
+
+                    <input
+                        id="cbEmail"
+                        type="email"
+                        placeholder="Email"
+                        autocomplete="email"
+                        style="display:none;"
+                    >
+
 
                     <input
                         id="cbPassword"
@@ -330,6 +383,7 @@ Batao, main aapki kya help karun? 😊`
                         autocomplete="current-password"
                         required
                     >
+
 
                     <button
                         id="cbAuthSubmit"
@@ -350,7 +404,7 @@ Batao, main aapki kya help karun? 😊`
                     id="cbAuthSwitch"
                     class="cb-auth-switch"
                     type="button">
-                    Don't have an account? Sign up
+                    Don't have an account? Signup
                 </button>
 
             </div>
@@ -360,143 +414,208 @@ Batao, main aapki kya help karun? 😊`
         document.body.appendChild(modal);
 
 
-        // CSS directly from JS so modal always works
+        // =====================================================
+        // AUTH CSS
+        // =====================================================
+
         const style =
             document.createElement("style");
 
         style.id =
-            "collegebotAuthStyle";
+            "collegebot-auth-style";
+
 
         style.textContent = `
 
             #collegebotAuthModal {
+
                 position: fixed;
+
                 inset: 0;
-                background: rgba(0,0,0,.55);
-                display: flex;
+
+                background:
+                    rgba(0,0,0,.65);
+
+                display: none;
+
                 align-items: center;
+
                 justify-content: center;
+
                 z-index: 99999;
+
                 padding: 20px;
             }
 
+
             .cb-auth-box {
-                width: min(420px, 100%);
+
+                width: min(460px, 95vw);
+
                 background: white;
-                border-radius: 22px;
+
+                border-radius: 24px;
+
                 padding: 35px;
-                box-shadow: 0 25px 80px rgba(0,0,0,.25);
+
+                box-shadow:
+                    0 25px 80px
+                    rgba(0,0,0,.3);
+
                 position: relative;
+
                 text-align: center;
             }
 
+
             .cb-auth-close {
+
                 position: absolute;
-                right: 15px;
+
+                right: 18px;
+
                 top: 12px;
+
                 border: 0;
+
                 background: transparent;
-                font-size: 28px;
+
+                font-size: 30px;
+
                 cursor: pointer;
             }
 
+
             .cb-auth-icon {
-                width: 65px;
-                height: 65px;
+
+                width: 70px;
+
+                height: 70px;
+
                 margin: auto;
+
                 border-radius: 18px;
+
                 display: flex;
+
                 align-items: center;
+
                 justify-content: center;
+
                 background: #292929;
-                font-size: 30px;
+
+                font-size: 32px;
             }
+
 
             .cb-auth-box h2 {
-                margin: 20px 0 8px;
+
+                margin:
+                    20px 0 8px;
             }
+
 
             .cb-auth-box p {
+
                 color: #777;
-                margin-bottom: 22px;
+
+                margin-bottom: 20px;
             }
 
+
             .cb-auth-box input {
+
                 width: 100%;
+
                 box-sizing: border-box;
+
                 padding: 14px;
+
                 margin: 7px 0;
-                border: 1px solid #ddd;
+
+                border:
+                    1px solid #ddd;
+
                 border-radius: 10px;
+
                 font-size: 15px;
             }
 
+
             .cb-auth-box input:focus {
+
                 outline: none;
-                border-color: #555;
+
+                border-color: #777;
             }
+
 
             #cbAuthSubmit {
+
                 width: 100%;
+
                 margin-top: 12px;
+
                 padding: 14px;
+
                 border: 0;
+
                 border-radius: 10px;
+
                 background: #292929;
+
                 color: white;
+
                 font-size: 16px;
+
                 font-weight: 600;
+
                 cursor: pointer;
             }
 
-            #cbAuthSubmit:hover {
-                opacity: .9;
+
+            #cbAuthSubmit:disabled {
+
+                opacity: .6;
+
+                cursor: not-allowed;
             }
 
-            .cb-auth-switch {
-                border: 0;
-                background: transparent;
-                margin-top: 18px;
-                cursor: pointer;
-                color: #555;
-            }
 
             .cb-auth-message {
+
                 min-height: 22px;
+
                 margin-top: 12px;
+
                 font-size: 14px;
             }
 
-            @media(max-width:500px) {
-                .cb-auth-box {
-                    padding: 25px 20px;
-                }
+
+            .cb-auth-switch {
+
+                border: 0;
+
+                background: transparent;
+
+                margin-top: 15px;
+
+                cursor: pointer;
+
+                color: #555;
             }
+
         `;
+
 
         document.head.appendChild(style);
 
 
-        const close =
-            document.getElementById(
-                "cbAuthClose"
+        $("cbAuthClose")
+            .addEventListener(
+                "click",
+                closeAuth
             );
-
-        const form =
-            document.getElementById(
-                "cbAuthForm"
-            );
-
-        const switchBtn =
-            document.getElementById(
-                "cbAuthSwitch"
-            );
-
-
-        close.addEventListener(
-            "click",
-            closeAuth
-        );
 
 
         modal.addEventListener(
@@ -506,35 +625,40 @@ Batao, main aapki kya help karun? 😊`
                 if (
                     event.target === modal
                 ) {
+
                     closeAuth();
                 }
             }
         );
 
 
-        switchBtn.addEventListener(
-            "click",
-            toggleAuthMode
-        );
+        $("cbAuthSwitch")
+            .addEventListener(
+                "click",
+                toggleAuthMode
+            );
 
 
-        form.addEventListener(
-            "submit",
-            submitAuth
-        );
+        $("cbAuthForm")
+            .addEventListener(
+                "submit",
+                submitAuth
+            );
 
 
         return modal;
     }
 
 
-    let authMode = "login";
+    // =========================================================
+    // OPEN AUTH
+    // =========================================================
 
+    function openAuth(
+        mode = "login"
+    ) {
 
-    function openAuth(mode = "login") {
-
-        authMode =
-            mode;
+        authMode = mode;
 
         const modal =
             createAuthModal();
@@ -546,12 +670,14 @@ Batao, main aapki kya help karun? 😊`
     }
 
 
+    // =========================================================
+    // CLOSE AUTH
+    // =========================================================
+
     function closeAuth() {
 
         const modal =
-            document.getElementById(
-                "collegebotAuthModal"
-            );
+            $("collegebotAuthModal");
 
         if (modal) {
 
@@ -561,72 +687,103 @@ Batao, main aapki kya help karun? 😊`
     }
 
 
+    // =========================================================
+    // AUTH UI
+    // =========================================================
+
     function updateAuthUI() {
 
         const title =
-            document.getElementById(
-                "cbAuthTitle"
-            );
+            $("cbAuthTitle");
 
         const subtitle =
-            document.getElementById(
-                "cbAuthSubtitle"
-            );
+            $("cbAuthSubtitle");
+
+        const name =
+            $("cbName");
+
+        const email =
+            $("cbEmail");
+
+        const identifier =
+            $("cbIdentifier");
 
         const submit =
-            document.getElementById(
-                "cbAuthSubmit"
-            );
+            $("cbAuthSubmit");
 
         const switchBtn =
-            document.getElementById(
-                "cbAuthSwitch"
-            );
+            $("cbAuthSwitch");
+
+        const message =
+            $("cbAuthMessage");
 
 
         if (!title) return;
 
 
-        if (authMode === "login") {
+        message.textContent = "";
 
-            title.textContent =
-                "Login to CollegeBot";
 
-            subtitle.textContent =
-                "Login to save chats and use all features.";
-
-            submit.textContent =
-                "Login";
-
-            switchBtn.textContent =
-                "Don't have an account? Sign up";
-
-        } else {
+        if (authMode === "signup") {
 
             title.textContent =
                 "Create CollegeBot Account";
 
             subtitle.textContent =
-                "Create your account to start using CollegeBot.";
+                "Account create karke CollegeBot use karo.";
+
+            name.style.display =
+                "block";
+
+            email.style.display =
+                "block";
+
+            name.required = true;
+
+            email.required = true;
+
+            identifier.placeholder =
+                "Username";
 
             submit.textContent =
                 "Create Account";
 
             switchBtn.textContent =
                 "Already have an account? Login";
-        }
 
+        } else {
 
-        const message =
-            document.getElementById(
-                "cbAuthMessage"
-            );
+            title.textContent =
+                "Login to CollegeBot";
 
-        if (message) {
-            message.textContent = "";
+            subtitle.textContent =
+                "Apne account se login karo.";
+
+            name.style.display =
+                "none";
+
+            email.style.display =
+                "none";
+
+            name.required = false;
+
+            email.required = false;
+
+            identifier.placeholder =
+                "Email or Username";
+
+            submit.textContent =
+                "Login";
+
+            switchBtn.textContent =
+                "Don't have an account? Signup";
         }
     }
 
+
+    // =========================================================
+    // TOGGLE LOGIN/SIGNUP
+    // =========================================================
 
     function toggleAuthMode() {
 
@@ -639,53 +796,103 @@ Batao, main aapki kya help karun? 😊`
     }
 
 
+    // =========================================================
+    // LOGIN / SIGNUP
+    // =========================================================
+
     async function submitAuth(event) {
 
         event.preventDefault();
 
 
-        const username =
-            document
-                .getElementById(
-                    "cbUsername"
-                )
-                .value
-                .trim();
+        const messageBox =
+            $("cbAuthMessage");
+
+        const submit =
+            $("cbAuthSubmit");
+
+
+        const name =
+            $("cbName")
+                ?.value
+                .trim() || "";
+
+
+        const identifier =
+            $("cbIdentifier")
+                ?.value
+                .trim() || "";
+
+
+        const email =
+            $("cbEmail")
+                ?.value
+                .trim() || "";
 
 
         const password =
-            document
-                .getElementById(
-                    "cbPassword"
-                )
-                .value;
+            $("cbPassword")
+                ?.value || "";
 
 
-        const messageBox =
-            document.getElementById(
-                "cbAuthMessage"
-            );
-
-
-        const submitBtn =
-            document.getElementById(
-                "cbAuthSubmit"
-            );
-
-
-        if (!username || !password) {
+        if (!identifier) {
 
             messageBox.textContent =
-                "Username aur password enter karo.";
+                "Username/email enter karo.";
 
             return;
         }
 
 
-        submitBtn.disabled =
-            true;
+        if (!password) {
 
-        submitBtn.textContent =
+            messageBox.textContent =
+                "Password enter karo.";
+
+            return;
+        }
+
+
+        if (
+            authMode === "signup" &&
+            !name
+        ) {
+
+            messageBox.textContent =
+                "Name enter karo.";
+
+            return;
+        }
+
+
+        if (
+            authMode === "signup" &&
+            !email
+        ) {
+
+            messageBox.textContent =
+                "Email enter karo.";
+
+            return;
+        }
+
+
+        if (
+            authMode === "signup" &&
+            password.length < 6
+        ) {
+
+            messageBox.textContent =
+                "Password minimum 6 characters ka hona chahiye.";
+
+            return;
+        }
+
+
+        submit.disabled = true;
+
+
+        submit.textContent =
             authMode === "login"
                 ? "Logging in..."
                 : "Creating account...";
@@ -693,33 +900,97 @@ Batao, main aapki kya help karun? 😊`
 
         try {
 
-            const result =
-                await api(
-                    authMode === "login"
-                        ? "/api/login"
-                        : "/api/signup",
-                    {
-                        method: "POST",
+            let result;
 
-                        headers: {
-                            "Content-Type":
-                                "application/json"
-                        },
 
-                        body:
-                            JSON.stringify({
-                                username,
-                                password
-                            })
-                    }
-                );
+            if (authMode === "signup") {
+
+                result =
+                    await api(
+                        "/api/signup",
+                        {
+                            method: "POST",
+
+                            headers: {
+                                "Content-Type":
+                                    "application/json"
+                            },
+
+                            body:
+                                JSON.stringify({
+
+                                    name,
+
+                                    username:
+                                        identifier,
+
+                                    email,
+
+                                    password
+                                })
+                        }
+                    );
+
+            } else {
+
+                result =
+                    await api(
+                        "/api/login",
+                        {
+                            method: "POST",
+
+                            headers: {
+                                "Content-Type":
+                                    "application/json"
+                            },
+
+                            body:
+                                JSON.stringify({
+
+                                    identifier,
+
+                                    username:
+                                        identifier,
+
+                                    email:
+                                        identifier,
+
+                                    password
+                                })
+                        }
+                    );
+            }
 
 
             if (!result.response.ok) {
 
                 throw new Error(
                     result.data.message ||
+                    result.data.error ||
                     "Authentication failed."
+                );
+            }
+
+
+            if (
+                result.data.success === false
+            ) {
+
+                throw new Error(
+                    result.data.message ||
+                    "Authentication failed."
+                );
+            }
+
+
+            const loggedIn =
+                await loadCurrentUser();
+
+
+            if (!loggedIn) {
+
+                throw new Error(
+                    "Session create nahi hui."
                 );
             }
 
@@ -730,7 +1001,9 @@ Batao, main aapki kya help karun? 😊`
                     : "Account created successfully ✅";
 
 
-            await loadCurrentUser();
+            await loadSettings();
+
+            await loadHistory();
 
 
             setTimeout(
@@ -738,17 +1011,17 @@ Batao, main aapki kya help karun? 😊`
 
                     closeAuth();
 
-                    loadHistory();
+                    showWelcome();
 
                 },
-                500
+                400
             );
 
 
         } catch (error) {
 
             console.error(
-                "Auth error:",
+                "Authentication error:",
                 error
             );
 
@@ -757,13 +1030,11 @@ Batao, main aapki kya help karun? 😊`
                 error.message ||
                 "Something went wrong.";
 
-
         } finally {
 
-            submitBtn.disabled =
-                false;
+            submit.disabled = false;
 
-            submitBtn.textContent =
+            submit.textContent =
                 authMode === "login"
                     ? "Login"
                     : "Create Account";
@@ -793,23 +1064,18 @@ Batao, main aapki kya help karun? 😊`
                 currentUser =
                     result.data.user;
 
-                console.log(
-                    "Logged in as:",
-                    currentUser.username
-                );
-
 
                 updateUserUI();
+
 
                 if (
                     result.data.settings
                 ) {
 
-                    settings =
-                        {
-                            ...settings,
-                            ...result.data.settings
-                        };
+                    settings = {
+                        ...settings,
+                        ...result.data.settings
+                    };
 
                     applyTheme(
                         settings.theme
@@ -821,8 +1087,7 @@ Batao, main aapki kya help karun? 😊`
             }
 
 
-            currentUser =
-                null;
+            currentUser = null;
 
             updateUserUI();
 
@@ -832,12 +1097,11 @@ Batao, main aapki kya help karun? 😊`
         } catch (error) {
 
             console.error(
-                "User check error:",
+                "Current user error:",
                 error
             );
 
-            currentUser =
-                null;
+            currentUser = null;
 
             updateUserUI();
 
@@ -845,6 +1109,10 @@ Batao, main aapki kya help karun? 😊`
         }
     }
 
+
+    // =========================================================
+    // USER UI
+    // =========================================================
 
     function updateUserUI() {
 
@@ -856,46 +1124,28 @@ Batao, main aapki kya help karun? 😊`
             logoutBtn.textContent =
                 "🚪 Logout";
 
-            logoutBtn.title =
-                "Logout";
-
         } else {
 
             logoutBtn.textContent =
                 "🔐 Login / Signup";
-
-            logoutBtn.title =
-                "Login or create account";
         }
-
-
-        // Username/profile text
-        const possibleNames =
-            document.querySelectorAll(
-                ".profile-name, #profileName, .username"
-            );
-
-
-        possibleNames.forEach(
-            element => {
-
-                element.textContent =
-                    currentUser
-                        ? currentUser.username
-                        : "Guest Student";
-            }
-        );
     }
 
 
     // =========================================================
-    // CHAT
+    // CHAT SEND
     // =========================================================
 
-    async function sendMessage(customMessage = null) {
+    async function sendMessage(
+        customMessage = null
+    ) {
 
         if (isSending) return;
 
+
+        // -----------------------------------------------------
+        // LOGIN CHECK
+        // -----------------------------------------------------
 
         if (!currentUser) {
 
@@ -905,9 +1155,15 @@ Batao, main aapki kya help karun? 😊`
         }
 
 
+        // -----------------------------------------------------
+        // MESSAGE
+        // -----------------------------------------------------
+
         const message =
             customMessage !== null
-                ? String(customMessage).trim()
+                ? String(
+                    customMessage
+                ).trim()
                 : (
                     input
                         ? input.value.trim()
@@ -918,13 +1174,16 @@ Batao, main aapki kya help karun? 😊`
         if (!message) return;
 
 
-        isSending =
-            true;
+        // -----------------------------------------------------
+        // LOCK
+        // -----------------------------------------------------
+
+        isSending = true;
 
 
         if (sendBtn) {
-            sendBtn.disabled =
-                true;
+
+            sendBtn.disabled = true;
         }
 
 
@@ -933,10 +1192,13 @@ Batao, main aapki kya help karun? 😊`
             customMessage === null
         ) {
 
-            input.value =
-                "";
+            input.value = "";
         }
 
+
+        // -----------------------------------------------------
+        // USER MESSAGE
+        // -----------------------------------------------------
 
         addMessage(
             "user",
@@ -949,6 +1211,10 @@ Batao, main aapki kya help karun? 😊`
 
 
         try {
+
+            // -------------------------------------------------
+            // API CALL
+            // -------------------------------------------------
 
             const result =
                 await api(
@@ -963,7 +1229,9 @@ Batao, main aapki kya help karun? 😊`
 
                         body:
                             JSON.stringify({
+
                                 message,
+
                                 chat_id:
                                     currentChatId
                             })
@@ -972,17 +1240,21 @@ Batao, main aapki kya help karun? 😊`
 
 
             if (thinking) {
+
                 thinking.remove();
             }
 
+
+            // -------------------------------------------------
+            // SESSION EXPIRED
+            // -------------------------------------------------
 
             if (
                 result.response.status ===
                 401
             ) {
 
-                currentUser =
-                    null;
+                currentUser = null;
 
                 updateUserUI();
 
@@ -991,6 +1263,10 @@ Batao, main aapki kya help karun? 😊`
                 return;
             }
 
+
+            // -------------------------------------------------
+            // ERROR
+            // -------------------------------------------------
 
             if (!result.response.ok) {
 
@@ -1002,6 +1278,29 @@ Batao, main aapki kya help karun? 😊`
             }
 
 
+            // -------------------------------------------------
+            // RESPONSE
+            // -------------------------------------------------
+
+            const answer =
+                result.data.answer ||
+                result.data.reply ||
+                result.data.response ||
+                result.data.message;
+
+
+            if (!answer) {
+
+                throw new Error(
+                    "Bot ne empty response diya."
+                );
+            }
+
+
+            // -------------------------------------------------
+            // SAVE CHAT ID IF AVAILABLE
+            // -------------------------------------------------
+
             if (
                 result.data.chat_id
             ) {
@@ -1011,23 +1310,20 @@ Batao, main aapki kya help karun? 😊`
             }
 
 
-            const answer =
-                result.data.answer;
-
-
-            if (!answer) {
-
-                throw new Error(
-                    "AI response empty hai."
-                );
-            }
-
+            // -------------------------------------------------
+            // BOT MESSAGE
+            // -------------------------------------------------
 
             addMessage(
                 "assistant",
                 answer
             );
 
+
+            // -------------------------------------------------
+            // IMPORTANT:
+            // REFRESH HISTORY AFTER EVERY MESSAGE
+            // -------------------------------------------------
 
             await loadHistory();
 
@@ -1041,29 +1337,31 @@ Batao, main aapki kya help karun? 😊`
 
 
             if (thinking) {
+
                 thinking.remove();
             }
 
 
             addMessage(
                 "assistant",
-                "Sorry 😕 Response nahi aa paaya.\n\n" +
-                "Error: " +
+                "Sorry 😕 Response nahi aa paaya.\n\nError: " +
                 error.message
             );
 
 
         } finally {
 
-            isSending =
-                false;
+            isSending = false;
+
 
             if (sendBtn) {
-                sendBtn.disabled =
-                    false;
+
+                sendBtn.disabled = false;
             }
 
+
             if (input) {
+
                 input.focus();
             }
         }
@@ -1076,116 +1374,166 @@ Batao, main aapki kya help karun? 😊`
 
     function newChat() {
 
-        currentChatId =
-            null;
+        currentChatId = null;
 
         showWelcome();
 
         if (input) {
-            input.value =
-                "";
+
+            input.value = "";
 
             input.focus();
         }
     }
 
 
-    window.newChat =
-        newChat;
+    // =========================================================
+    // 🔥 QUICK QUESTIONS
+    // =========================================================
+    //
+    // THIS IS THE IMPORTANT PART
+    //
+    // Your HTML has:
+    //
+    // data-question="What is the attendance requirement?"
+    //
+    // So clicking the button directly calls sendMessage()
+    //
+    // =========================================================
+
+    function setupQuickQuestions() {
+
+        const buttons =
+            document.querySelectorAll(
+                "[data-question]"
+            );
 
 
-    if (newChatBtn) {
-
-        newChatBtn.addEventListener(
-            "click",
-            newChat
+        console.log(
+            "Quick question buttons found:",
+            buttons.length
         );
+
+
+        buttons.forEach(
+            button => {
+
+                // Avoid duplicate event listener
+
+                if (
+                    button.dataset.cbBound ===
+                    "true"
+                ) {
+
+                    return;
+                }
+
+
+                button.dataset.cbBound =
+                    "true";
+
+
+                button.addEventListener(
+                    "click",
+                    event => {
+
+                        event.preventDefault();
+
+                        event.stopPropagation();
+
+
+                        const question =
+                            button
+                                .getAttribute(
+                                    "data-question"
+                                );
+
+
+                        console.log(
+                            "Quick question clicked:",
+                            question
+                        );
+
+
+                        if (!question) {
+
+                            console.warn(
+                                "No data-question found."
+                            );
+
+                            return;
+                        }
+
+
+                        sendMessage(
+                            question
+                        );
+                    }
+                );
+            }
+        );
+
+
+        // -----------------------------------------------------
+        // OLD .quick-question SUPPORT
+        // -----------------------------------------------------
+
+        document
+            .querySelectorAll(
+                ".quick-question"
+            )
+            .forEach(
+                button => {
+
+                    if (
+                        button.dataset.cbBound2 ===
+                        "true"
+                    ) {
+
+                        return;
+                    }
+
+
+                    button.dataset.cbBound2 =
+                        "true";
+
+
+                    button.addEventListener(
+                        "click",
+                        event => {
+
+                            event.preventDefault();
+
+
+                            const question =
+                                button.dataset.question ||
+                                button.textContent.trim();
+
+
+                            if (question) {
+
+                                sendMessage(
+                                    question
+                                );
+                            }
+                        }
+                    );
+                }
+            );
     }
 
 
     // =========================================================
-    // QUICK QUESTIONS
+    // GLOBAL QUICK QUESTION
     // =========================================================
-
-    document
-        .querySelectorAll(
-            "[data-question]"
-        )
-        .forEach(button => {
-
-            button.addEventListener(
-                "click",
-                () => {
-
-                    sendMessage(
-                        button.dataset.question
-                    );
-                }
-            );
-        });
-
-
-    // Also support old quick-question buttons
-    document
-        .querySelectorAll(
-            ".quick-question"
-        )
-        .forEach(button => {
-
-            button.addEventListener(
-                "click",
-                () => {
-
-                    const text =
-                        button.dataset.question ||
-                        button.textContent.trim();
-
-                    if (text) {
-                        sendMessage(text);
-                    }
-                }
-            );
-        });
-
 
     window.askQuickQuestion =
         function(question) {
 
+            if (!question) return;
+
             sendMessage(question);
         };
-
-
-    // =========================================================
-    // SEND
-    // =========================================================
-
-    if (sendBtn) {
-
-        sendBtn.addEventListener(
-            "click",
-            () => sendMessage()
-        );
-    }
-
-
-    if (input) {
-
-        input.addEventListener(
-            "keydown",
-            event => {
-
-                if (
-                    event.key === "Enter" &&
-                    !event.shiftKey
-                ) {
-
-                    event.preventDefault();
-
-                    sendMessage();
-                }
-            }
-        );
-    }
 
 
     // =========================================================
@@ -1194,17 +1542,27 @@ Batao, main aapki kya help karun? 😊`
 
     async function loadHistory() {
 
-        if (!recentQuestions) {
-            return;
-        }
-
-
         if (!currentUser) {
 
-            recentQuestions.innerHTML =
-                `<p class="empty-history">
-                    Login to see your chats
-                </p>`;
+            if (recentQuestions) {
+
+                recentQuestions.innerHTML = `
+                    <p class="empty-history">
+                        Login to see your chats
+                    </p>
+                `;
+            }
+
+
+            if (historyList) {
+
+                historyList.innerHTML = `
+                    <p class="empty-history">
+                        Login to see your chats
+                    </p>
+                `;
+            }
+
 
             return;
         }
@@ -1222,6 +1580,11 @@ Batao, main aapki kya help karun? 😊`
                 result.response.status ===
                 401
             ) {
+
+                currentUser = null;
+
+                updateUserUI();
+
                 return;
             }
 
@@ -1236,13 +1599,21 @@ Batao, main aapki kya help karun? 😊`
 
 
             const chats =
+                result.data.history ||
                 result.data.chats ||
                 [];
+
+
+            console.log(
+                "History loaded:",
+                chats
+            );
 
 
             renderRecent(
                 chats
             );
+
 
             renderHistory(
                 chats
@@ -1259,6 +1630,10 @@ Batao, main aapki kya help karun? 😊`
     }
 
 
+    // =========================================================
+    // RECENT CHATS
+    // =========================================================
+
     function renderRecent(chats) {
 
         if (!recentQuestions) return;
@@ -1273,44 +1648,78 @@ Batao, main aapki kya help karun? 😊`
             chats.length === 0
         ) {
 
-            recentQuestions.innerHTML =
-                `<p class="empty-history">
+            recentQuestions.innerHTML = `
+                <p class="empty-history">
                     No chats yet
-                </p>`;
+                </p>
+            `;
 
             return;
         }
 
 
         chats
-            .slice(0, 8)
-            .forEach(chat => {
+            .slice()
+            .reverse()
+            .slice(0, 10)
+            .forEach(
+                chat => {
 
-                const item =
-                    document.createElement(
-                        "div"
+                    const item =
+                        document.createElement(
+                            "div"
+                        );
+
+
+                    item.className =
+                        "recent-chat-item";
+
+
+                    const text =
+                        chat.user_message ||
+                        "New Chat";
+
+
+                    item.textContent =
+                        text.length > 45
+                            ? text.substring(
+                                0,
+                                45
+                            ) + "..."
+                            : text;
+
+
+                    item.title =
+                        text;
+
+
+                    item.style.cursor =
+                        "pointer";
+
+
+                    item.addEventListener(
+                        "click",
+                        () => {
+
+                            loadChat(
+                                chat.id
+                            );
+                        }
                     );
 
-                item.className =
-                    "recent-item";
 
-                item.textContent =
-                    chat.title ||
-                    "New Chat";
-
-
-                item.addEventListener(
-                    "click",
-                    () => loadChat(chat.id)
-                );
-
-
-                recentQuestions.appendChild(
-                    item
-                );
-            });
+                    recentQuestions
+                        .appendChild(
+                            item
+                        );
+                }
+            );
     }
 
+
+    // =========================================================
+    // FULL HISTORY
+    // =========================================================
 
     function renderHistory(chats) {
 
@@ -1326,96 +1735,149 @@ Batao, main aapki kya help karun? 😊`
             chats.length === 0
         ) {
 
-            historyList.innerHTML =
-                `<p class="empty-history">
+            historyList.innerHTML = `
+                <p class="empty-history">
                     No chats yet
-                </p>`;
+                </p>
+            `;
 
             return;
         }
 
 
-        chats.forEach(chat => {
+        chats
+            .slice()
+            .reverse()
+            .forEach(
+                chat => {
 
-            const item =
-                document.createElement(
-                    "div"
-                );
-
-            item.className =
-                "history-item";
+                    const item =
+                        document.createElement(
+                            "div"
+                        );
 
 
-            item.innerHTML = `
-                <div class="history-question">
-                    ${escapeHTML(
-                        chat.title ||
-                        "New Chat"
-                    )}
-                </div>
+                    item.className =
+                        "history-item";
 
-                <div class="history-time">
-                    ${escapeHTML(
+
+                    const question =
+                        chat.user_message ||
+                        "New Chat";
+
+
+                    const answer =
+                        chat.bot_response ||
+                        "";
+
+
+                    const date =
                         chat.created_at ||
-                        ""
-                    )}
-                </div>
-
-                <button
-                    type="button"
-                    class="history-delete"
-                    data-chat-id="${chat.id}">
-                    Delete
-                </button>
-            `;
+                        "";
 
 
-            item.addEventListener(
-                "click",
-                event => {
+                    item.innerHTML = `
 
-                    if (
-                        event.target.classList.contains(
-                            "history-delete"
-                        )
-                    ) {
-                        return;
+                        <div class="history-question">
+                            ${escapeHTML(
+                                question
+                            )}
+                        </div>
+
+                        <div class="history-preview">
+                            ${escapeHTML(
+                                answer.length > 100
+                                    ? answer.substring(
+                                        0,
+                                        100
+                                    ) + "..."
+                                    : answer
+                            )}
+                        </div>
+
+                        <div class="history-time">
+                            ${escapeHTML(
+                                date
+                            )}
+                        </div>
+
+                        <button
+                            type="button"
+                            class="history-delete"
+                            data-id="${chat.id}">
+                            Delete
+                        </button>
+                    `;
+
+
+                    // -----------------------------------------
+                    // OPEN CHAT
+                    // -----------------------------------------
+
+                    item.addEventListener(
+                        "click",
+                        event => {
+
+                            if (
+                                event.target.closest(
+                                    ".history-delete"
+                                )
+                            ) {
+
+                                return;
+                            }
+
+
+                            loadChat(
+                                chat.id
+                            );
+                        }
+                    );
+
+
+                    // -----------------------------------------
+                    // DELETE
+                    // -----------------------------------------
+
+                    const deleteBtn =
+                        item.querySelector(
+                            ".history-delete"
+                        );
+
+
+                    if (deleteBtn) {
+
+                        deleteBtn.addEventListener(
+                            "click",
+                            async event => {
+
+                                event.stopPropagation();
+
+
+                                await deleteChat(
+                                    chat.id
+                                );
+                            }
+                        );
                     }
 
-                    loadChat(
-                        chat.id
-                    );
+
+                    historyList
+                        .appendChild(
+                            item
+                        );
                 }
             );
-
-
-            const deleteBtn =
-                item.querySelector(
-                    ".history-delete"
-                );
-
-
-            deleteBtn.addEventListener(
-                "click",
-                async event => {
-
-                    event.stopPropagation();
-
-                    await deleteChat(
-                        chat.id
-                    );
-                }
-            );
-
-
-            historyList.appendChild(
-                item
-            );
-        });
     }
 
 
-    async function loadChat(chatId) {
+    // =========================================================
+    // LOAD ONE HISTORY CHAT
+    // =========================================================
+
+    async function loadChat(
+        chatId
+    ) {
 
         if (!currentUser) {
 
@@ -1437,51 +1899,58 @@ Batao, main aapki kya help karun? 😊`
 
                 throw new Error(
                     result.data.message ||
-                    "Unable to load chat."
+                    "Chat load failed."
+                );
+            }
+
+
+            const chat =
+                result.data.chat;
+
+
+            if (!chat) {
+
+                throw new Error(
+                    "Chat nahi mili."
                 );
             }
 
 
             currentChatId =
-                chatId;
+                chat.id;
 
 
             clearChat();
 
 
-            const messages =
-                result.data.messages ||
-                [];
-
-
             if (
-                messages.length === 0
+                chat.user_message
             ) {
 
-                showWelcome();
-
-            } else {
-
-                messages.forEach(
-                    message => {
-
-                        addMessage(
-                            message.role,
-                            message.content
-                        );
-                    }
+                addMessage(
+                    "user",
+                    chat.user_message
                 );
             }
 
 
-            if (historyModal) {
+            if (
+                chat.bot_response
+            ) {
 
-                historyModal.classList.add(
-                    "hidden"
+                addMessage(
+                    "assistant",
+                    chat.bot_response
                 );
+            }
 
-                historyModal.style.display =
-                    "none";
+
+            closeHistory();
+
+
+            if (input) {
+
+                input.focus();
             }
 
 
@@ -1492,6 +1961,7 @@ Batao, main aapki kya help karun? 😊`
                 error
             );
 
+
             alert(
                 "Chat load nahi hui."
             );
@@ -1499,15 +1969,21 @@ Batao, main aapki kya help karun? 😊`
     }
 
 
-    async function deleteChat(chatId) {
+    // =========================================================
+    // DELETE CHAT
+    // =========================================================
 
-        if (
-            !confirm(
+    async function deleteChat(
+        chatId
+    ) {
+
+        const ok =
+            confirm(
                 "Ye chat delete karni hai?"
-            )
-        ) {
-            return;
-        }
+            );
+
+
+        if (!ok) return;
 
 
         try {
@@ -1548,9 +2024,10 @@ Batao, main aapki kya help karun? 😊`
         } catch (error) {
 
             console.error(
-                "Delete error:",
+                "Delete history error:",
                 error
             );
+
 
             alert(
                 "Chat delete nahi hui."
@@ -1560,7 +2037,81 @@ Batao, main aapki kya help karun? 😊`
 
 
     // =========================================================
-    // HISTORY BUTTON
+    // CLEAR ALL HISTORY
+    // =========================================================
+
+    async function clearHistory() {
+
+        if (!currentUser) {
+
+            openAuth("login");
+
+            return;
+        }
+
+
+        if (
+            !confirm(
+                "Puri chat history delete karni hai?"
+            )
+        ) {
+
+            return;
+        }
+
+
+        try {
+
+            const result =
+                await api(
+                    "/api/history/clear",
+                    {
+                        method: "POST"
+                    }
+                );
+
+
+            if (!result.response.ok) {
+
+                throw new Error(
+                    result.data.message ||
+                    "Clear history failed."
+                );
+            }
+
+
+            currentChatId =
+                null;
+
+
+            showWelcome();
+
+
+            await loadHistory();
+
+
+            alert(
+                "History clear ho gayi ✅"
+            );
+
+
+        } catch (error) {
+
+            console.error(
+                "Clear history error:",
+                error
+            );
+
+
+            alert(
+                "History clear nahi hui."
+            );
+        }
+    }
+
+
+    // =========================================================
+    // HISTORY MODAL
     // =========================================================
 
     function showHistory() {
@@ -1588,118 +2139,32 @@ Batao, main aapki kya help karun? 😊`
     }
 
 
-    window.showHistory =
-        showHistory;
+    function closeHistory() {
+
+        if (!historyModal) return;
 
 
-    window.closeHistory =
-        function() {
-
-            if (historyModal) {
-
-                historyModal.classList.add(
-                    "hidden"
-                );
-
-                historyModal.style.display =
-                    "none";
-            }
-        };
-
-
-    if (historyBtn) {
-
-        historyBtn.addEventListener(
-            "click",
-            showHistory
+        historyModal.classList.add(
+            "hidden"
         );
+
+
+        historyModal.style.display =
+            "none";
     }
 
 
     // =========================================================
-    // SETTINGS
+    // THEME
     // =========================================================
 
-    function createThemeSelector() {
+    function applyTheme(
+        theme
+    ) {
 
-        if (!settingsModal) return;
+        if (!theme) {
 
-
-        if (
-            document.getElementById(
-                "themeSelect"
-            )
-        ) {
-            return;
-        }
-
-
-        const container =
-            settingsModal.querySelector(
-                ".settings-content"
-            ) ||
-            settingsModal;
-
-
-        const wrapper =
-            document.createElement(
-                "div"
-            );
-
-        wrapper.className =
-            "setting-row";
-
-
-        wrapper.innerHTML = `
-            <label for="themeSelect">
-                🎨 Theme
-            </label>
-
-            <select id="themeSelect">
-                <option value="light">
-                    ☀️ Light
-                </option>
-
-                <option value="dark">
-                    🌙 Dark
-                </option>
-
-                <option value="pink">
-                    🌸 Pink
-                </option>
-
-                <option value="blue">
-                    💙 Blue
-                </option>
-
-                <option value="purple">
-                    💜 Purple
-                </option>
-            </select>
-        `;
-
-
-        container.prepend(
-            wrapper
-        );
-    }
-
-
-    function applyTheme(theme) {
-
-        const allowed = [
-            "light",
-            "dark",
-            "pink",
-            "blue",
-            "purple"
-        ];
-
-
-        if (
-            !allowed.includes(theme)
-        ) {
-            theme = "light";
+            theme = "dark";
         }
 
 
@@ -1715,27 +2180,16 @@ Batao, main aapki kya help karun? 😊`
                 "data-theme",
                 theme
             );
-
-
-        const selector =
-            document.getElementById(
-                "themeSelect"
-            );
-
-
-        if (selector) {
-
-            selector.value =
-                theme;
-        }
     }
 
 
+    // =========================================================
+    // LOAD SETTINGS
+    // =========================================================
+
     async function loadSettings() {
 
-        if (!currentUser) {
-            return;
-        }
+        if (!currentUser) return;
 
 
         try {
@@ -1763,23 +2217,19 @@ Batao, main aapki kya help karun? 😊`
 
 
                 const language =
-                    document.getElementById(
-                        "languageSelect"
-                    );
+                    $("languageSelect");
 
 
                 if (language) {
 
                     language.value =
                         settings.language ||
-                        "auto";
+                        "English";
                 }
 
 
                 const voice =
-                    document.getElementById(
-                        "voiceToggle"
-                    );
+                    $("voiceToggle");
 
 
                 if (voice) {
@@ -1800,7 +2250,11 @@ Batao, main aapki kya help karun? 😊`
     }
 
 
-    function showSettings() {
+    // =========================================================
+    // SAVE SETTINGS
+    // =========================================================
+
+    async function saveSettings() {
 
         if (!currentUser) {
 
@@ -1810,7 +2264,117 @@ Batao, main aapki kya help karun? 😊`
         }
 
 
-        createThemeSelector();
+        const theme =
+            $("themeSelect")
+                ? $("themeSelect").value
+                : settings.theme;
+
+
+        const language =
+            $("languageSelect")
+                ? $("languageSelect").value
+                : settings.language;
+
+
+        const voice =
+            $("voiceToggle")
+                ? $("voiceToggle").checked
+                : true;
+
+
+        settings.theme =
+            theme;
+
+
+        settings.language =
+            language;
+
+
+        settings.voice =
+            voice;
+
+
+        applyTheme(
+            theme
+        );
+
+
+        try {
+
+            const result =
+                await api(
+                    "/api/settings",
+                    {
+                        method: "POST",
+
+                        headers: {
+                            "Content-Type":
+                                "application/json"
+                        },
+
+                        body:
+                            JSON.stringify({
+
+                                theme,
+
+                                language,
+
+                                persona:
+                                    "friendly",
+
+                                save_history:
+                                    true
+                            })
+                    }
+                );
+
+
+            if (!result.response.ok) {
+
+                throw new Error(
+                    result.data.message ||
+                    "Settings save failed."
+                );
+            }
+
+
+            alert(
+                "Settings saved successfully ✅"
+            );
+
+
+            closeSettings();
+
+
+        } catch (error) {
+
+            console.error(
+                "Settings error:",
+                error
+            );
+
+
+            alert(
+                "Settings save nahi hui: " +
+                error.message
+            );
+        }
+    }
+
+
+    // =========================================================
+    // SETTINGS MODAL
+    // =========================================================
+
+    function showSettings() {
+
+        if (!currentUser) {
+
+            openAuth("login");
+
+            return;
+        }
+
 
         loadSettings();
 
@@ -1827,229 +2391,19 @@ Batao, main aapki kya help karun? 😊`
     }
 
 
-    window.showSettings =
-        showSettings;
+    function closeSettings() {
+
+        if (!settingsModal) return;
 
 
-    window.closeSettings =
-        function() {
-
-            if (settingsModal) {
-
-                settingsModal.classList.add(
-                    "hidden"
-                );
-
-                settingsModal.style.display =
-                    "none";
-            }
-        };
-
-
-    if (settingsBtn) {
-
-        settingsBtn.addEventListener(
-            "click",
-            showSettings
+        settingsModal.classList.add(
+            "hidden"
         );
+
+
+        settingsModal.style.display =
+            "none";
     }
-
-
-    // =========================================================
-    // SAVE SETTINGS
-    // =========================================================
-
-    const saveSettingsBtn =
-        $("saveSettingsBtn");
-
-
-    if (saveSettingsBtn) {
-
-        saveSettingsBtn.addEventListener(
-            "click",
-            async () => {
-
-                const theme =
-                    $("themeSelect")
-                        ? $("themeSelect").value
-                        : "light";
-
-
-                const language =
-                    $("languageSelect")
-                        ? $("languageSelect").value
-                        : "auto";
-
-
-                const voice =
-                    $("voiceToggle")
-                        ? $("voiceToggle").checked
-                        : true;
-
-
-                settings.theme =
-                    theme;
-
-                settings.language =
-                    language;
-
-                settings.voice =
-                    voice;
-
-
-                applyTheme(
-                    theme
-                );
-
-
-                try {
-
-                    const result =
-                        await api(
-                            "/api/settings",
-                            {
-                                method: "POST",
-
-                                headers: {
-                                    "Content-Type":
-                                        "application/json"
-                                },
-
-                                body:
-                                    JSON.stringify({
-                                        theme,
-                                        language,
-                                        persona:
-                                            "friendly",
-                                        save_history:
-                                            true
-                                    })
-                            }
-                        );
-
-
-                    if (!result.response.ok) {
-
-                        throw new Error(
-                            result.data.message ||
-                            "Settings save failed."
-                        );
-                    }
-
-
-                    alert(
-                        "Settings saved successfully ✅"
-                    );
-
-
-                    window.closeSettings();
-
-
-                } catch (error) {
-
-                    alert(
-                        "Settings save nahi hui: " +
-                        error.message
-                    );
-                }
-            }
-        );
-    }
-
-
-    // =========================================================
-    // CLEAR HISTORY
-    // =========================================================
-
-    const clearHistoryBtn =
-        $("clearHistoryBtn");
-
-
-    if (clearHistoryBtn) {
-
-        clearHistoryBtn.addEventListener(
-            "click",
-            async () => {
-
-                if (!currentUser) {
-
-                    openAuth("login");
-
-                    return;
-                }
-
-
-                if (
-                    !confirm(
-                        "Puri chat history delete karni hai?"
-                    )
-                ) {
-                    return;
-                }
-
-
-                try {
-
-                    const result =
-                        await api(
-                            "/api/history",
-                            {
-                                method: "DELETE"
-                            }
-                        );
-
-
-                    if (!result.response.ok) {
-
-                        throw new Error(
-                            result.data.message ||
-                            "Clear history failed."
-                        );
-                    }
-
-
-                    currentChatId =
-                        null;
-
-                    showWelcome();
-
-                    await loadHistory();
-
-
-                    alert(
-                        "Chat history clear ho gayi ✅"
-                    );
-
-
-                } catch (error) {
-
-                    console.error(
-                        error
-                    );
-
-                    alert(
-                        "History clear nahi hui."
-                    );
-                }
-            }
-        );
-    }
-
-
-    window.clearHistory =
-        async function() {
-
-            if (clearHistoryBtn) {
-
-                clearHistoryBtn.click();
-
-            } else {
-
-                alert(
-                    "Clear history button nahi mila."
-                );
-            }
-        };
 
 
     // =========================================================
@@ -2080,27 +2434,27 @@ Batao, main aapki kya help karun? 😊`
         recognition.continuous =
             false;
 
+
         recognition.interimResults =
-            true;
+            false;
+
 
         recognition.lang =
-            "en-IN";
+            "hi-IN";
 
 
         recognition.onstart =
             () => {
 
-                isListening =
-                    true;
-
+                isListening = true;
 
                 if (micBtn) {
 
                     micBtn.textContent =
-                        "🔴";
+                        "🛑";
 
                     micBtn.classList.add(
-                        "recording"
+                        "listening"
                     );
                 }
             };
@@ -2109,80 +2463,27 @@ Batao, main aapki kya help karun? 😊`
         recognition.onresult =
             event => {
 
-                let transcript =
-                    "";
+                const transcript =
+                    event
+                        .results[0][0]
+                        .transcript;
 
 
-                for (
-                    let i =
-                        event.resultIndex;
-
-                    i <
-                    event.results.length;
-
-                    i++
-                ) {
-
-                    transcript +=
-                        event.results[i][0]
-                            .transcript;
-                }
-
-
-                transcript =
-                    transcript.trim();
-
-
-                if (
-                    input &&
-                    transcript
-                ) {
+                if (input) {
 
                     input.value =
                         transcript;
-                }
-
-
-                const last =
-                    event.results[
-                        event.results.length - 1
-                    ];
-
-
-                if (
-                    last &&
-                    last.isFinal &&
-                    transcript
-                ) {
-
-                    sendMessage(
-                        transcript
-                    );
                 }
             };
 
 
         recognition.onerror =
-            event => {
+            error => {
 
                 console.error(
                     "Voice error:",
-                    event.error
+                    error
                 );
-
-                isListening =
-                    false;
-
-
-                if (micBtn) {
-
-                    micBtn.textContent =
-                        "🎤";
-
-                    micBtn.classList.remove(
-                        "recording"
-                    );
-                }
             };
 
 
@@ -2199,79 +2500,54 @@ Batao, main aapki kya help karun? 😊`
                         "🎤";
 
                     micBtn.classList.remove(
-                        "recording"
+                        "listening"
                     );
                 }
             };
     }
 
 
-    if (micBtn) {
+    // =========================================================
+    // TOGGLE VOICE
+    // =========================================================
 
-        micBtn.addEventListener(
-            "click",
-            () => {
+    function toggleVoice() {
 
-                if (!currentUser) {
+        if (!recognition) {
 
-                    openAuth("login");
+            alert(
+                "Voice input browser me supported nahi hai."
+            );
 
-                    return;
-                }
-
-
-                if (!recognition) {
-
-                    alert(
-                        "Chrome me voice recognition available nahi hai."
-                    );
-
-                    return;
-                }
+            return;
+        }
 
 
-                if (isListening) {
+        if (isListening) {
 
-                    try {
-                        recognition.stop();
-                    } catch (e) {}
+            recognition.stop();
 
-                    return;
-                }
+            return;
+        }
 
 
-                const language =
-                    $("languageSelect")
-                        ? $("languageSelect").value
-                        : settings.language;
+        try {
+
+            recognition.lang =
+                settings.language ===
+                "English"
+                    ? "en-IN"
+                    : "hi-IN";
 
 
-                if (
-                    language === "hindi"
-                ) {
+            recognition.start();
 
-                    recognition.lang =
-                        "hi-IN";
+        } catch (error) {
 
-                } else {
-
-                    recognition.lang =
-                        "en-IN";
-                }
-
-
-                try {
-
-                    recognition.start();
-
-                } catch (error) {
-
-                    console.error(
-                        error
-                    );
-                }
-            }
-        );
+            console.error(
+                error
+            );
+        }
     }
 
 
@@ -2279,169 +2555,61 @@ Batao, main aapki kya help karun? 😊`
     // TEXT TO SPEECH
     // =========================================================
 
-    if (speakBtn) {
+    function speakText(
+        text
+    ) {
 
-        speakBtn.addEventListener(
-            "click",
-            () => {
-
-                if (!lastBotMessage) {
-
-                    alert(
-                        "Pehle AI ka response aane do."
-                    );
-
-                    return;
-                }
+        if (!text) return;
 
 
-                if (
-                    !("speechSynthesis" in window)
-                ) {
+        if (
+            !window.speechSynthesis
+        ) {
 
-                    alert(
-                        "Browser voice output support nahi karta."
-                    );
+            alert(
+                "Text to speech supported nahi hai."
+            );
 
-                    return;
-                }
-
-
-                window.speechSynthesis.cancel();
-
-
-                const text =
-                    lastBotMessage
-                        .replace(
-                            /[*#`]/g,
-                            ""
-                        )
-                        .replace(
-                            /\n+/g,
-                            " "
-                        );
-
-
-                const utterance =
-                    new SpeechSynthesisUtterance(
-                        text
-                    );
-
-
-                utterance.lang =
-                    settings.language ===
-                    "hindi"
-                        ? "hi-IN"
-                        : "en-IN";
-
-
-                utterance.rate =
-                    0.95;
-
-
-                window.speechSynthesis.speak(
-                    utterance
-                );
-            }
-        );
-    }
-
-
-    // =========================================================
-    // LOGOUT / LOGIN BUTTON
-    // =========================================================
-
-    if (logoutBtn) {
-
-        logoutBtn.addEventListener(
-            "click",
-            async () => {
-
-                if (!currentUser) {
-
-                    openAuth("login");
-
-                    return;
-                }
-
-
-                try {
-
-                    await api(
-                        "/api/logout",
-                        {
-                            method: "POST"
-                        }
-                    );
-
-
-                    currentUser =
-                        null;
-
-                    currentChatId =
-                        null;
-
-                    updateUserUI();
-
-                    showWelcome();
-
-                    if (recentQuestions) {
-
-                        recentQuestions.innerHTML =
-                            `<p class="empty-history">
-                                Login to see your chats
-                            </p>`;
-                    }
-
-
-                } catch (error) {
-
-                    console.error(
-                        "Logout error:",
-                        error
-                    );
-                }
-            }
-        );
-    }
-
-
-    // =========================================================
-    // CLOSE MODALS
-    // =========================================================
-
-    document.addEventListener(
-        "click",
-        event => {
-
-            if (
-                event.target.id ===
-                "closeHistory"
-            ) {
-
-                window.closeHistory();
-            }
-
-
-            if (
-                event.target.id ===
-                "closeSettings"
-            ) {
-
-                window.closeSettings();
-            }
+            return;
         }
-    );
+
+
+        window.speechSynthesis.cancel();
+
+
+        const utterance =
+            new SpeechSynthesisUtterance(
+                text
+            );
+
+
+        utterance.lang =
+            settings.language ===
+            "English"
+                ? "en-IN"
+                : "hi-IN";
+
+
+        utterance.rate =
+            0.95;
+
+
+        window.speechSynthesis
+            .speak(
+                utterance
+            );
+    }
 
 
     // =========================================================
-    // GEMINI STATUS
+    // STATUS
     // =========================================================
 
     async function checkStatus() {
 
         const status =
             $("status");
+
 
         if (!status) return;
 
@@ -2478,6 +2646,275 @@ Batao, main aapki kya help karun? 😊`
 
 
     // =========================================================
+    // BUTTON EVENTS
+    // =========================================================
+
+    if (sendBtn) {
+
+        sendBtn.addEventListener(
+            "click",
+            () => {
+
+                sendMessage();
+            }
+        );
+    }
+
+
+    if (input) {
+
+        input.addEventListener(
+            "keydown",
+            event => {
+
+                if (
+                    event.key === "Enter" &&
+                    !event.shiftKey
+                ) {
+
+                    event.preventDefault();
+
+                    sendMessage();
+                }
+            }
+        );
+    }
+
+
+    if (micBtn) {
+
+        micBtn.addEventListener(
+            "click",
+            toggleVoice
+        );
+    }
+
+
+    if (speakBtn) {
+
+        speakBtn.addEventListener(
+            "click",
+            () => {
+
+                if (lastBotMessage) {
+
+                    speakText(
+                        lastBotMessage
+                    );
+                }
+            }
+        );
+    }
+
+
+    if (newChatBtn) {
+
+        newChatBtn.addEventListener(
+            "click",
+            newChat
+        );
+    }
+
+
+    if (historyBtn) {
+
+        historyBtn.addEventListener(
+            "click",
+            showHistory
+        );
+    }
+
+
+    if (settingsBtn) {
+
+        settingsBtn.addEventListener(
+            "click",
+            showSettings
+        );
+    }
+
+
+    if (logoutBtn) {
+
+        logoutBtn.addEventListener(
+            "click",
+            async () => {
+
+                if (!currentUser) {
+
+                    openAuth("login");
+
+                    return;
+                }
+
+
+                try {
+
+                    await api(
+                        "/api/logout",
+                        {
+                            method: "POST"
+                        }
+                    );
+
+
+                    currentUser =
+                        null;
+
+
+                    currentChatId =
+                        null;
+
+
+                    updateUserUI();
+
+
+                    showWelcome();
+
+
+                    if (
+                        recentQuestions
+                    ) {
+
+                        recentQuestions.innerHTML = `
+                            <p class="empty-history">
+                                Login to see your chats
+                            </p>
+                        `;
+                    }
+
+
+                } catch (error) {
+
+                    console.error(
+                        "Logout error:",
+                        error
+                    );
+                }
+            }
+        );
+    }
+
+
+    // =========================================================
+    // CLEAR HISTORY BUTTON
+    // =========================================================
+
+    const clearHistoryBtn =
+        $("clearHistoryBtn");
+
+
+    if (clearHistoryBtn) {
+
+        clearHistoryBtn.addEventListener(
+            "click",
+            clearHistory
+        );
+    }
+
+
+    // =========================================================
+    // SAVE SETTINGS BUTTON
+    // =========================================================
+
+    const saveSettingsBtn =
+        $("saveSettingsBtn");
+
+
+    if (saveSettingsBtn) {
+
+        saveSettingsBtn.addEventListener(
+            "click",
+            saveSettings
+        );
+    }
+
+
+    // =========================================================
+    // CLOSE MODALS
+    // =========================================================
+
+    document.addEventListener(
+        "click",
+        event => {
+
+            if (
+                event.target.id ===
+                "closeHistory"
+            ) {
+
+                closeHistory();
+            }
+
+
+            if (
+                event.target.id ===
+                "closeSettings"
+            ) {
+
+                closeSettings();
+            }
+        }
+    );
+
+
+    // =========================================================
+    // GLOBAL FUNCTIONS
+    // =========================================================
+
+    window.sendMessage =
+        sendMessage;
+
+    window.newChat =
+        newChat;
+
+    window.showHistory =
+        showHistory;
+
+    window.closeHistory =
+        closeHistory;
+
+    window.showSettings =
+        showSettings;
+
+    window.closeSettings =
+        closeSettings;
+
+    window.openAuth =
+        openAuth;
+
+    window.closeAuth =
+        closeAuth;
+
+    window.toggleAuthMode =
+        toggleAuthMode;
+
+    window.loadHistory =
+        loadHistory;
+
+    window.loadChat =
+        loadChat;
+
+    window.deleteChat =
+        deleteChat;
+
+    window.clearHistory =
+        clearHistory;
+
+    window.logout =
+        async function() {
+
+            if (logoutBtn) {
+
+                logoutBtn.click();
+            }
+        };
+
+    window.speakText =
+        speakText;
+
+
+    // =========================================================
     // INITIALIZE
     // =========================================================
 
@@ -2488,14 +2925,17 @@ Batao, main aapki kya help karun? 😊`
         );
 
 
+        // IMPORTANT:
+        // Bind quick questions FIRST
+
+        setupQuickQuestions();
+
+
         setupVoice();
 
 
         const loggedIn =
             await loadCurrentUser();
-
-
-        createThemeSelector();
 
 
         if (loggedIn) {
@@ -2508,10 +2948,11 @@ Batao, main aapki kya help karun? 😊`
 
             if (recentQuestions) {
 
-                recentQuestions.innerHTML =
-                    `<p class="empty-history">
+                recentQuestions.innerHTML = `
+                    <p class="empty-history">
                         Login to see your chats
-                    </p>`;
+                    </p>
+                `;
             }
         }
 
@@ -2523,6 +2964,7 @@ Batao, main aapki kya help karun? 😊`
 
 
         if (input) {
+
             input.focus();
         }
 
@@ -2530,8 +2972,17 @@ Batao, main aapki kya help karun? 😊`
         console.log(
             "CollegeBot loaded successfully ✅"
         );
+
+
+        console.log(
+            "Quick questions ready ✅"
+        );
     }
 
+
+    // =========================================================
+    // START
+    // =========================================================
 
     initialize();
 
